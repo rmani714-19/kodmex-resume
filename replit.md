@@ -1,3 +1,9 @@
+# Resume Builder
+
+## Product Overview
+
+A full-featured resume builder with ATS scoring, AI enhancement, create/upload/edit capabilities. Dark premium-modern theme (#0F172A background, #6C5CE7 primary purple).
+
 # Workspace
 
 ## Overview

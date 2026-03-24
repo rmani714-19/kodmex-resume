@@ -1,0 +1,19 @@
+packages:
+  "framer-motion": "For page transitions, hover effects, and circular progress animations"
+  "lucide-react": "For UI icons across the application"
+  "clsx": "For conditional class merging in UI components"
+  "tailwind-merge": "For resolving Tailwind class conflicts safely"
+  "date-fns": "For formatting dates in the dashboard"
+  "react-hook-form": "For managing complex nested form state in the resume editor"
+
+images:
+  - path: "artifacts/resume-builder/public/images/auth-bg.png"
+    description: "Abstract fluid gradient mesh background in deep navy (#0F172A), bright purple (#6C5CE7), and vibrant cyan (#00B894) with a modern dark glassmorphism feel"
+    aspect_ratio: "16:9"
+  - path: "artifacts/resume-builder/public/images/empty-state.png"
+    description: "A 3D minimalist illustration of a floating document clipboard with glowing purple and cyan accents on a dark navy background"
+    aspect_ratio: "1:1"
+
+notes:
+  - "The file upload endpoint is not defined in the OpenAPI spec, so the file upload parsing is mocked on the frontend to populate the resume editor."
+  - "The layout uses the 3-column desktop layout requested in the design system (40% form, 40% preview, 20% ATS)."

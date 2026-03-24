@@ -1,15 +1,18 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Resume Builder API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: resumes
+    description: Resume management
+  - name: ats
+    description: ATS scoring
 paths:
   /healthz:
     get:
@@ -24,6 +27,174 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /resumes:
+    get:
+      operationId: listResumes
+      tags: [resumes]
+      summary: List all resumes
+      responses:
+        "200":
+          description: List of resumes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Resume"
+    post:
+      operationId: createResume
+      tags: [resumes]
+      summary: Create a new resume
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateResumeRequest"
+      responses:
+        "201":
+          description: Resume created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resume"
+
+  /resumes/{id}:
+    get:
+      operationId: getResume
+      tags: [resumes]
+      summary: Get a resume by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resume found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resume"
+        "404":
+          description: Resume not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    put:
+      operationId: updateResume
+      tags: [resumes]
+      summary: Update a resume
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateResumeRequest"
+      responses:
+        "200":
+          description: Resume updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Resume"
+        "404":
+          description: Resume not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteResume
+      tags: [resumes]
+      summary: Delete a resume
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Resume deleted
+        "404":
+          description: Resume not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /resumes/{id}/ats-score:
+    post:
+      operationId: getAtsScore
+      tags: [ats]
+      summary: Calculate ATS score for a resume against a job description
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AtsScoreRequest"
+      responses:
+        "200":
+          description: ATS score calculated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtsScoreResult"
+        "404":
+          description: Resume not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /resumes/{id}/enhance:
+    post:
+      operationId: enhanceResume
+      tags: [resumes]
+      summary: AI-enhance resume content for a specific section
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EnhanceResumeRequest"
+      responses:
+        "200":
+          description: Enhanced content returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnhanceResumeResult"
+        "404":
+          description: Resume not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +205,321 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    PersonalInfo:
+      type: object
+      properties:
+        fullName:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        location:
+          type: string
+        linkedin:
+          type: string
+        website:
+          type: string
+        summary:
+          type: string
+      required:
+        - fullName
+        - email
+
+    WorkExperience:
+      type: object
+      properties:
+        id:
+          type: string
+        company:
+          type: string
+        title:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        current:
+          type: boolean
+        description:
+          type: string
+        achievements:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - company
+        - title
+        - startDate
+
+    Education:
+      type: object
+      properties:
+        id:
+          type: string
+        institution:
+          type: string
+        degree:
+          type: string
+        field:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        gpa:
+          type: string
+      required:
+        - id
+        - institution
+        - degree
+
+    Skill:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        level:
+          type: string
+          enum: [beginner, intermediate, advanced, expert]
+        category:
+          type: string
+      required:
+        - id
+        - name
+
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        technologies:
+          type: array
+          items:
+            type: string
+        url:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+      required:
+        - id
+        - name
+        - description
+
+    ResumeContent:
+      type: object
+      properties:
+        personalInfo:
+          $ref: "#/components/schemas/PersonalInfo"
+        workExperience:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkExperience"
+        education:
+          type: array
+          items:
+            $ref: "#/components/schemas/Education"
+        skills:
+          type: array
+          items:
+            $ref: "#/components/schemas/Skill"
+        projects:
+          type: array
+          items:
+            $ref: "#/components/schemas/Project"
+        certifications:
+          type: array
+          items:
+            type: string
+        languages:
+          type: array
+          items:
+            type: string
+      required:
+        - personalInfo
+
+    Resume:
+      type: object
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          $ref: "#/components/schemas/ResumeContent"
+        template:
+          type: string
+          enum: [modern, classic, minimal, creative]
+        lastAtsScore:
+          type: integer
+          nullable: true
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - title
+        - content
+        - template
+        - createdAt
+        - updatedAt
+
+    CreateResumeRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          $ref: "#/components/schemas/ResumeContent"
+        template:
+          type: string
+          enum: [modern, classic, minimal, creative]
+      required:
+        - title
+        - content
+
+    UpdateResumeRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          $ref: "#/components/schemas/ResumeContent"
+        template:
+          type: string
+          enum: [modern, classic, minimal, creative]
+        lastAtsScore:
+          type: integer
+          nullable: true
+
+    AtsScoreRequest:
+      type: object
+      properties:
+        jobDescription:
+          type: string
+      required:
+        - jobDescription
+
+    AtsKeywordMatch:
+      type: object
+      properties:
+        keyword:
+          type: string
+        found:
+          type: boolean
+        importance:
+          type: string
+          enum: [high, medium, low]
+        suggestion:
+          type: string
+      required:
+        - keyword
+        - found
+        - importance
+
+    AtsSection:
+      type: object
+      properties:
+        name:
+          type: string
+        score:
+          type: integer
+        maxScore:
+          type: integer
+        feedback:
+          type: string
+        suggestions:
+          type: array
+          items:
+            type: string
+      required:
+        - name
+        - score
+        - maxScore
+        - feedback
+
+    AtsScoreResult:
+      type: object
+      properties:
+        overallScore:
+          type: integer
+        grade:
+          type: string
+        keywordMatches:
+          type: array
+          items:
+            $ref: "#/components/schemas/AtsKeywordMatch"
+        sections:
+          type: array
+          items:
+            $ref: "#/components/schemas/AtsSection"
+        missingKeywords:
+          type: array
+          items:
+            type: string
+        improvementSuggestions:
+          type: array
+          items:
+            type: string
+        strengths:
+          type: array
+          items:
+            type: string
+      required:
+        - overallScore
+        - grade
+        - keywordMatches
+        - sections
+        - missingKeywords
+        - improvementSuggestions
+        - strengths
+
+    EnhanceResumeRequest:
+      type: object
+      properties:
+        section:
+          type: string
+          enum: [summary, workExperience, skills, achievements]
+        context:
+          type: string
+        currentContent:
+          type: string
+        jobDescription:
+          type: string
+      required:
+        - section
+        - currentContent
+
+    EnhanceResumeResult:
+      type: object
+      properties:
+        enhancedContent:
+          type: string
+        suggestions:
+          type: array
+          items:
+            type: string
+        explanation:
+          type: string
+      required:
+        - enhancedContent
+        - suggestions
+        - explanation
