@@ -35,8 +35,8 @@ export function Dashboard() {
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
-            My Resumes
+          <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
+            KodMex Resume Builder
           </h1>
           <p className="text-muted-foreground mt-2">Manage and optimize your professional profiles.</p>
         </div>
@@ -118,11 +118,18 @@ export function Dashboard() {
                   <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">
                     {resume.title}
                   </h3>
-                  {resume.lastAtsScore !== null && resume.lastAtsScore !== undefined && (
-                    <Badge variant={resume.lastAtsScore >= 75 ? "success" : resume.lastAtsScore >= 50 ? "warning" : "error"}>
-                      {resume.lastAtsScore} ATS
-                    </Badge>
-                  )}
+                  <div className="flex gap-2">
+                    {((resume.content as any)?.experienceLevel) && (
+                      <Badge variant="outline" className="capitalize">
+                        {(resume.content as any).experienceLevel}
+                      </Badge>
+                    )}
+                    {resume.lastAtsScore !== null && resume.lastAtsScore !== undefined && (
+                      <Badge variant={resume.lastAtsScore >= 75 ? "success" : resume.lastAtsScore >= 50 ? "warning" : "error"}>
+                        {resume.lastAtsScore} ATS
+                      </Badge>
+                    )}
+                  </div>
                 </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                   <span>Edited {formatDate(resume.updatedAt)}</span>

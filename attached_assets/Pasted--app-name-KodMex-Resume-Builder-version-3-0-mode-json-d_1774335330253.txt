@@ -1,0 +1,293 @@
+{
+  "app": {
+    "name": "KodMex Resume Builder",
+    "version": "3.0",
+    "mode": "json-driven",
+    "goal": "Create ATS optimized resume in under 2 minutes",
+    "features": [
+      "dynamicForm",
+      "atsScoring",
+      "resumeUpload",
+      "autoGenerate",
+      "validation",
+      "suggestions",
+      "responsiveUI",
+      "3clickResume",
+      "livePreview",
+      "autoSave"
+    ]
+  },
+
+  "flow": {
+    "steps": [
+      {
+        "id": 1,
+        "name": "Input",
+        "options": ["uploadResume", "quickStart"]
+      },
+      {
+        "id": 2,
+        "name": "AutoGenerate",
+        "actions": [
+          "parseResume",
+          "generateResume",
+          "fillForm",
+          "calculateATS"
+        ]
+      },
+      {
+        "id": 3,
+        "name": "EditOptional"
+      },
+      {
+        "id": 4,
+        "name": "PreviewAndDownload"
+      }
+    ]
+  },
+
+  "userMeta": {
+    "experienceLevel": ["school", "fresher", "mid", "senior"],
+    "ageGroup": ["school", "college", "working"]
+  },
+
+  "formSchema": {
+    "sections": [
+      {
+        "id": "personal",
+        "title": "Personal Information",
+        "required": true,
+        "fields": [
+          {
+            "key": "fullName",
+            "type": "text",
+            "required": true,
+            "validation": {
+              "minLength": 3,
+              "pattern": "^[A-Za-z ]+$"
+            }
+          },
+          { "key": "email", "type": "email", "required": true },
+          {
+            "key": "phone",
+            "type": "tel",
+            "required": true,
+            "validation": {
+              "pattern": "^[0-9]{10}$"
+            }
+          },
+          { "key": "role", "type": "text", "required": true }
+        ]
+      },
+
+      {
+        "id": "summary",
+        "title": "Professional Summary",
+        "fields": [
+          {
+            "key": "summary",
+            "type": "textarea",
+            "aiAssist": true,
+            "validation": {
+              "minWords": 20
+            }
+          }
+        ]
+      },
+
+      {
+        "id": "education",
+        "title": "Education",
+        "repeatable": true,
+        "required": true,
+        "fields": [
+          { "key": "degree", "type": "text", "required": true },
+          { "key": "institution", "type": "text", "required": true },
+          { "key": "startYear", "type": "number" },
+          { "key": "endYear", "type": "number" }
+        ]
+      },
+
+      {
+        "id": "experience",
+        "title": "Experience",
+        "repeatable": true,
+        "fields": [
+          { "key": "company", "type": "text", "required": true },
+          { "key": "role", "type": "text", "required": true },
+          {
+            "key": "description",
+            "type": "textarea",
+            "aiAssist": true,
+            "validation": {
+              "minWords": 8,
+              "mustHaveActionVerb": true,
+              "mustHaveMetric": true
+            }
+          }
+        ]
+      },
+
+      {
+        "id": "skills",
+        "title": "Skills",
+        "type": "tags",
+        "required": true,
+        "validation": {
+          "minItems": 3,
+          "unique": true
+        }
+      },
+
+      {
+        "id": "projects",
+        "title": "Projects",
+        "repeatable": true,
+        "fields": [
+          { "key": "name", "type": "text", "required": true },
+          {
+            "key": "description",
+            "type": "textarea",
+            "validation": { "minWords": 15 }
+          },
+          {
+            "key": "tech",
+            "type": "tags",
+            "minItems": 2
+          }
+        ]
+      },
+
+      {
+        "id": "certifications",
+        "title": "Certifications",
+        "repeatable": true,
+        "fields": [
+          { "key": "name", "type": "text" },
+          { "key": "issuer", "type": "text" }
+        ]
+      }
+    ]
+  },
+
+  "ageRules": [
+    {
+      "condition": { "ageGroup": "school" },
+      "hide": ["experience"],
+      "suggestions": [
+        "Add school achievements",
+        "Mention competitions"
+      ]
+    }
+  ],
+
+  "validation": {
+    "actionVerbs": [
+      "developed",
+      "built",
+      "led",
+      "designed",
+      "implemented",
+      "optimized"
+    ],
+    "metricsRegex": "(\\d+%|\\d+|increase|reduced|improved)"
+  },
+
+  "atsScoring": {
+    "weights": {
+      "keywords": 40,
+      "contentQuality": 20,
+      "formatting": 20,
+      "sections": 10,
+      "validation": 10
+    },
+    "rules": {
+      "requiredSections": [
+        "personal",
+        "education",
+        "skills",
+        "summary"
+      ]
+    }
+  },
+
+  "resumeUpload": {
+    "enabled": true,
+    "formats": ["pdf", "docx"],
+    "maxSizeMB": 5
+  },
+
+  "autoGenerate": {
+    "enabled": true,
+    "templates": {
+      "fresher": {
+        "summary": "Motivated {role} with strong foundation in {skills}. Passionate about building scalable applications."
+      },
+      "experienced": {
+        "summary": "Experienced {role} delivering scalable solutions and measurable impact."
+      }
+    }
+  },
+
+  "preview": {
+    "template": "modernClean",
+    "font": "Arial",
+    "fontSize": "12px",
+    "lineHeight": 1.5,
+    "sectionSpacing": "12px"
+  },
+
+  "database": {
+    "table": "resumes",
+    "fields": [
+      "resumeId",
+      "userId",
+      "data",
+      "atsScore",
+      "createdAt"
+    ]
+  },
+
+  "api": {
+    "routes": [
+      "/api/uploadResume",
+      "/api/generateResume",
+      "/api/atsScore",
+      "/api/saveResume"
+    ]
+  },
+
+  "ui": {
+    "theme": "minimal-light",
+    "colors": {
+      "primary": "#2563EB",
+      "background": "#F8FAFC",
+      "surface": "#FFFFFF",
+      "textPrimary": "#0F172A",
+      "textSecondary": "#64748B",
+      "border": "#E2E8F0"
+    },
+
+    "layout": {
+      "mobile": {
+        "type": "singleColumn",
+        "cta": "stickyBottom"
+      },
+      "tablet": {
+        "type": "lightSplit"
+      },
+      "desktop": {
+        "type": "centered",
+        "maxWidth": "900px"
+      }
+    },
+
+    "ux": {
+      "autoSave": true,
+      "progressBar": true,
+      "inlineValidation": true,
+      "oneClickFix": true,
+      "realTimeATS": true
+    }
+  }
+}

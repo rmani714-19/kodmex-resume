@@ -7,7 +7,6 @@ interface ResumePreviewProps {
 }
 
 export function ResumePreview({ content, template = "modern" }: ResumePreviewProps) {
-  // We force a white background and black text to look like a real document
   return (
     <div className="bg-white text-black min-h-[1056px] w-[816px] shadow-2xl p-12 shrink-0 origin-top overflow-hidden">
       
@@ -16,6 +15,12 @@ export function ResumePreview({ content, template = "modern" }: ResumePreviewPro
         <h1 className="text-4xl font-bold tracking-tight text-gray-900 uppercase">
           {content.personalInfo.fullName || "Your Name"}
         </h1>
+        {/* Role/Title if added to custom extension of personalInfo */}
+        {(content.personalInfo as any).role && (
+          <h2 className="text-xl font-medium text-primary mt-1">
+            {(content.personalInfo as any).role}
+          </h2>
+        )}
         
         <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4 text-sm text-gray-600">
           {content.personalInfo.email && (
@@ -148,6 +153,25 @@ export function ResumePreview({ content, template = "modern" }: ResumePreviewPro
                   <p className="text-xs text-gray-500 font-medium">
                     Technologies: {proj.technologies.join(', ')}
                   </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* CERTIFICATIONS */}
+      {content.certifications && content.certifications.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-lg font-bold text-gray-900 uppercase tracking-wider mb-4 border-b border-gray-200 pb-1">
+            Certifications
+          </h2>
+          <div className="flex flex-wrap gap-x-8 gap-y-2">
+            {content.certifications.map((cert, idx) => (
+              <div key={idx} className="text-sm">
+                <span className="font-semibold text-gray-900">{cert.split('|')[0]?.trim()}</span>
+                {cert.split('|')[1] && (
+                  <span className="text-gray-600"> - {cert.split('|')[1]?.trim()}</span>
                 )}
               </div>
             ))}

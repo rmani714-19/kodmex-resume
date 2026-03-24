@@ -5,6 +5,7 @@ interface ResumeContent {
     phone?: string;
     location?: string;
     summary?: string;
+    role?: string;
   };
   workExperience?: Array<{
     company: string;
@@ -28,32 +29,54 @@ interface ResumeContent {
   languages?: string[];
 }
 
+// KodMex ATS scoring weights (v3.0 spec)
+const ATS_WEIGHTS = {
+  keywords: 40,
+  contentQuality: 20,
+  formatting: 20,
+  sections: 10,
+  validation: 10,
+};
+
+// ATS validation rules from spec
+const ACTION_VERBS = [
+  "developed", "built", "led", "designed", "implemented", "optimized",
+  "created", "managed", "delivered", "improved", "achieved", "executed",
+  "spearheaded", "orchestrated", "accelerated", "engineered", "drove",
+  "transformed", "launched", "reduced", "increased", "automated",
+  "deployed", "architected", "scaled", "maintained", "collaborated",
+  "mentored", "streamlined", "integrated",
+];
+const METRICS_REGEX = /(\d+%|\d+\+?|\d+x|increase[d]?|reduc[ed]+|improv[ed]+|grew|saved|generated)/i;
+
+function hasActionVerb(text: string): boolean {
+  const lower = text.toLowerCase();
+  return ACTION_VERBS.some((v) => lower.includes(v));
+}
+
+function hasMetric(text: string): boolean {
+  return METRICS_REGEX.test(text);
+}
+
 function extractText(content: ResumeContent): string {
   const parts: string[] = [];
-
   if (content.personalInfo?.summary) parts.push(content.personalInfo.summary);
-
+  if (content.personalInfo?.role) parts.push(content.personalInfo.role);
   (content.workExperience || []).forEach((exp) => {
     parts.push(exp.title, exp.company);
     if (exp.description) parts.push(exp.description);
     (exp.achievements || []).forEach((a) => parts.push(a));
   });
-
   (content.education || []).forEach((edu) => {
     parts.push(edu.degree, edu.institution);
     if (edu.field) parts.push(edu.field);
   });
-
   (content.skills || []).forEach((s) => parts.push(s.name, s.category || ""));
-
   (content.projects || []).forEach((p) => {
     parts.push(p.name, p.description);
     (p.technologies || []).forEach((t) => parts.push(t));
   });
-
   (content.certifications || []).forEach((c) => parts.push(c));
-  (content.languages || []).forEach((l) => parts.push(l));
-
   return parts.join(" ").toLowerCase();
 }
 
@@ -62,23 +85,19 @@ function extractKeywords(text: string): string[] {
     "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of",
     "with", "by", "from", "as", "is", "was", "are", "were", "be", "been", "being",
     "have", "has", "had", "do", "does", "did", "will", "would", "could", "should",
-    "may", "might", "shall", "can", "need", "must", "ought", "used", "able",
-    "not", "no", "nor", "so", "yet", "both", "either", "neither", "each", "every",
-    "all", "any", "few", "more", "most", "other", "some", "such", "than", "then",
-    "these", "those", "this", "that", "their", "there", "they", "we", "you", "he",
-    "she", "it", "its", "our", "your", "my", "his", "her", "who", "which", "what",
-    "when", "where", "how", "why", "while", "also", "just", "into", "through",
-    "about", "after", "before", "during", "without", "within", "including",
-    "across", "behind", "beyond", "plus", "except", "up", "out", "around", "over",
-    "under", "between", "throughout", "along", "following", "among", "whereas",
+    "may", "might", "shall", "can", "need", "must", "not", "no", "nor", "so",
+    "yet", "both", "either", "neither", "each", "every", "all", "any", "few",
+    "more", "most", "other", "some", "such", "than", "then", "these", "those",
+    "this", "that", "their", "there", "they", "we", "you", "he", "she", "it",
+    "its", "our", "your", "my", "his", "her", "who", "which", "what", "when",
+    "where", "how", "why", "while", "also", "just", "into", "through", "about",
+    "after", "before", "during", "without", "within", "including", "up", "out",
   ]);
-
   const words = text
     .toLowerCase()
     .replace(/[^a-zA-Z0-9\s\+\#\.]/g, " ")
     .split(/\s+/)
     .filter((w) => w.length > 2 && !stopWords.has(w));
-
   return [...new Set(words)];
 }
 
@@ -89,140 +108,153 @@ function determineImportance(keyword: string, jobText: string): "high" | "medium
   return "low";
 }
 
-function scoreSection(
-  sectionName: string,
-  content: ResumeContent,
+// --- SCORE COMPONENTS ---
+
+function scoreKeywords(
+  resumeText: string,
   jobKeywords: string[],
-  resumeText: string
-): { name: string; score: number; maxScore: number; feedback: string; suggestions: string[] } {
-  const suggestions: string[] = [];
-
-  switch (sectionName) {
-    case "Contact & Summary": {
-      let score = 0;
-      const max = 20;
-      const pi = content.personalInfo;
-      if (pi.email) score += 4;
-      if (pi.phone) score += 3;
-      if (pi.location) score += 3;
-      if (pi.summary && pi.summary.length > 50) {
-        score += 5;
-        const summaryLower = pi.summary.toLowerCase();
-        const summaryKeywordHits = jobKeywords.filter((k) => summaryLower.includes(k)).length;
-        score += Math.min(5, summaryKeywordHits * 1.5);
-      } else {
-        suggestions.push("Add a compelling professional summary that includes key skills from the job description.");
-      }
-      const feedback =
-        score >= 15
-          ? "Strong contact section with a well-tailored summary."
-          : score >= 10
-            ? "Good basics, but your summary could be more impactful."
-            : "Your summary is missing or too brief. Add keywords from the job posting.";
-      return { name: sectionName, score: Math.round(score), maxScore: max, feedback, suggestions };
-    }
-
-    case "Work Experience": {
-      let score = 0;
-      const max = 35;
-      const exps = content.workExperience || [];
-      if (exps.length === 0) {
-        suggestions.push("Add work experience entries to strengthen your resume.");
-        return { name: sectionName, score: 0, maxScore: max, feedback: "No work experience listed.", suggestions };
-      }
-      score += Math.min(10, exps.length * 3);
-      exps.forEach((exp) => {
-        const expText = `${exp.title} ${exp.company} ${exp.description || ""} ${(exp.achievements || []).join(" ")}`.toLowerCase();
-        const hits = jobKeywords.filter((k) => expText.includes(k)).length;
-        score += Math.min(8, hits * 1.2);
-        if (!exp.achievements || exp.achievements.length === 0) {
-          suggestions.push(`Add measurable achievements for your role at ${exp.company}.`);
-        }
-        if (exp.description && exp.description.length < 50) {
-          suggestions.push(`Expand your description for ${exp.company} to include more detail.`);
-        }
-      });
-      const finalScore = Math.min(max, Math.round(score));
-      const feedback =
-        finalScore >= 28
-          ? "Excellent work experience section with strong keyword alignment."
-          : finalScore >= 20
-            ? "Good experience, but could better mirror the job description language."
-            : "Work experience needs more detail and job-specific keywords.";
-      return { name: sectionName, score: finalScore, maxScore: max, feedback, suggestions };
-    }
-
-    case "Skills": {
-      let score = 0;
-      const max = 25;
-      const skills = content.skills || [];
-      if (skills.length === 0) {
-        suggestions.push("Add a skills section with relevant technical and soft skills.");
-        return { name: sectionName, score: 0, maxScore: max, feedback: "No skills listed.", suggestions };
-      }
-      const skillNames = skills.map((s) => s.name.toLowerCase());
-      const matchedSkills = jobKeywords.filter((k) => skillNames.some((s) => s.includes(k) || k.includes(s)));
-      score += Math.min(20, matchedSkills.length * 2.5);
-      if (skills.length >= 5) score += 5;
-      else suggestions.push("Add at least 5-10 skills to improve ATS matching.");
-      const finalScore = Math.min(max, Math.round(score));
-      const feedback =
-        finalScore >= 20
-          ? "Strong skills section matching the job requirements."
-          : finalScore >= 12
-            ? "Good skills listed, but some key skills from the job description are missing."
-            : "Your skills section needs more keywords from the job description.";
-      return { name: sectionName, score: finalScore, maxScore: max, feedback, suggestions };
-    }
-
-    case "Education": {
-      let score = 0;
-      const max = 10;
-      const edu = content.education || [];
-      if (edu.length === 0) {
-        suggestions.push("Add your educational background.");
-      } else {
-        score += 6;
-        if (edu[0].field) score += 2;
-        const eduText = edu.map((e) => `${e.degree} ${e.institution} ${e.field || ""}`).join(" ").toLowerCase();
-        const hits = jobKeywords.filter((k) => eduText.includes(k)).length;
-        score += Math.min(2, hits);
-      }
-      const feedback =
-        score >= 8 ? "Education section looks good." : "Add your degree, institution, and field of study.";
-      return { name: sectionName, score: Math.round(score), maxScore: max, feedback, suggestions };
-    }
-
-    case "Format & Completeness": {
-      let score = 0;
-      const max = 10;
-      const wordCount = resumeText.split(/\s+/).length;
-      if (wordCount >= 300 && wordCount <= 800) score += 5;
-      else if (wordCount > 800) {
-        score += 3;
-        suggestions.push("Your resume may be too long. Aim for 300-800 words for best ATS performance.");
-      } else {
-        score += 2;
-        suggestions.push("Your resume is too brief. Add more detail to improve ATS compatibility.");
-      }
-      if (content.personalInfo.phone) score += 2;
-      if (content.skills && content.skills.length > 0) score += 1;
-      if (content.workExperience && content.workExperience.length > 0) score += 1;
-      if (content.education && content.education.length > 0) score += 1;
-      return {
-        name: sectionName,
-        score: Math.min(max, Math.round(score)),
-        maxScore: max,
-        feedback:
-          score >= 8 ? "Well-structured and complete resume." : "Improve completeness by filling in all sections.",
-        suggestions,
-      };
-    }
-
-    default:
-      return { name: sectionName, score: 0, maxScore: 10, feedback: "", suggestions: [] };
-  }
+  jobText: string
+): { score: number; matches: Array<{ keyword: string; found: boolean; importance: "high" | "medium" | "low"; suggestion?: string }> } {
+  const matches = jobKeywords.slice(0, 30).map((keyword) => {
+    const found = resumeText.includes(keyword);
+    const importance = determineImportance(keyword, jobText);
+    return { keyword, found, importance, suggestion: found ? undefined : `Add "${keyword}" to your resume.` };
+  });
+  const highWeight = 3, medWeight = 2, lowWeight = 1;
+  let earned = 0, maxPossible = 0;
+  matches.forEach(({ found, importance }) => {
+    const w = importance === "high" ? highWeight : importance === "medium" ? medWeight : lowWeight;
+    if (found) earned += w;
+    maxPossible += w;
+  });
+  const keywordScore = maxPossible > 0 ? (earned / maxPossible) * ATS_WEIGHTS.keywords : 0;
+  return { score: Math.round(keywordScore), matches };
 }
+
+function scoreContentQuality(content: ResumeContent): { score: number; suggestions: string[] } {
+  const suggestions: string[] = [];
+  let earned = 0;
+  const maxScore = ATS_WEIGHTS.contentQuality;
+
+  // Summary quality (6pts)
+  const summary = content.personalInfo?.summary || "";
+  const summaryWords = summary.trim().split(/\s+/).filter(Boolean).length;
+  if (summaryWords >= 20) earned += 6;
+  else if (summaryWords >= 10) { earned += 3; suggestions.push("Expand your summary to at least 20 words."); }
+  else suggestions.push("Write a professional summary of at least 20 words.");
+
+  // Experience quality (8pts)
+  const exps = content.workExperience || [];
+  if (exps.length > 0) {
+    let expScore = 0;
+    exps.forEach((exp) => {
+      const desc = exp.description || "";
+      if (hasActionVerb(desc)) expScore += 2;
+      else suggestions.push(`Use action verbs in your ${exp.company} description.`);
+      if (hasMetric(desc)) expScore += 2;
+      else suggestions.push(`Add measurable metrics to your ${exp.company} description.`);
+    });
+    earned += Math.min(8, expScore);
+  } else {
+    suggestions.push("Add work experience to improve content quality.");
+    earned += 0;
+  }
+
+  // Skills quality (3pts)
+  const skills = content.skills || [];
+  if (skills.length >= 5) earned += 3;
+  else if (skills.length >= 3) { earned += 2; suggestions.push("Add at least 5 skills."); }
+  else suggestions.push("Add at least 3 skills (required by ATS).");
+
+  // Projects (3pts)
+  const projects = content.projects || [];
+  if (projects.length > 0) {
+    let projScore = 0;
+    projects.forEach((p) => {
+      const words = p.description?.trim().split(/\s+/).length || 0;
+      if (words >= 15) projScore += 2;
+    });
+    earned += Math.min(3, projScore);
+  }
+
+  return { score: Math.min(maxScore, Math.round(earned)), suggestions };
+}
+
+function scoreFormatting(content: ResumeContent, resumeText: string): { score: number; suggestions: string[] } {
+  const suggestions: string[] = [];
+  let earned = 0;
+  const maxScore = ATS_WEIGHTS.formatting;
+
+  // Word count (6pts)
+  const wordCount = resumeText.split(/\s+/).filter(Boolean).length;
+  if (wordCount >= 300 && wordCount <= 800) earned += 6;
+  else if (wordCount >= 200) { earned += 4; suggestions.push("Aim for 300–800 words for best ATS compatibility."); }
+  else { earned += 2; suggestions.push("Your resume is too brief. Add more detail (300–800 words ideal)."); }
+
+  // Contact completeness (6pts)
+  const pi = content.personalInfo;
+  if (pi.email) earned += 2;
+  if (pi.phone) earned += 2;
+  else suggestions.push("Add a phone number.");
+  if (pi.location) earned += 2;
+  else suggestions.push("Add your location (city, state).");
+
+  // Role specified (4pts)
+  if (pi.role || (content.workExperience && content.workExperience.length > 0)) earned += 4;
+  else suggestions.push("Specify your target role/title.");
+
+  // Certifications (4pts)
+  const certs = content.certifications || [];
+  if (certs.length > 0) earned += 4;
+  else suggestions.push("Consider adding certifications to stand out.");
+
+  return { score: Math.min(maxScore, Math.round(earned)), suggestions };
+}
+
+function scoreSections(content: ResumeContent): { score: number; suggestions: string[] } {
+  const suggestions: string[] = [];
+  let earned = 0;
+  const maxScore = ATS_WEIGHTS.sections;
+  const requiredSections = ["personal", "education", "skills", "summary"];
+  const present: Record<string, boolean> = {
+    personal: !!(content.personalInfo?.fullName && content.personalInfo?.email),
+    education: !!(content.education && content.education.length > 0),
+    skills: !!(content.skills && content.skills.length >= 3),
+    summary: !!(content.personalInfo?.summary && content.personalInfo.summary.trim().length > 10),
+  };
+  const perSection = maxScore / requiredSections.length;
+  requiredSections.forEach((section) => {
+    if (present[section]) earned += perSection;
+    else suggestions.push(`Complete the ${section} section (required).`);
+  });
+  return { score: Math.round(earned), suggestions };
+}
+
+function scoreValidation(content: ResumeContent): { score: number; suggestions: string[] } {
+  const suggestions: string[] = [];
+  let earned = 0;
+  const maxScore = ATS_WEIGHTS.validation;
+  const exps = content.workExperience || [];
+
+  // Action verbs (4pts)
+  const allDescriptions = exps.map((e) => e.description || "").join(" ");
+  if (exps.length === 0 || hasActionVerb(allDescriptions)) earned += 4;
+  else suggestions.push("Use action verbs: developed, built, led, implemented, etc.");
+
+  // Metrics (3pts)
+  if (exps.length === 0 || hasMetric(allDescriptions)) earned += 3;
+  else suggestions.push("Add measurable results: %, $, numbers, or improvement words.");
+
+  // Skills unique & min 3 (3pts)
+  const skillNames = (content.skills || []).map((s) => s.name.toLowerCase());
+  const uniqueSkills = new Set(skillNames);
+  if (uniqueSkills.size >= 3) earned += 3;
+  else suggestions.push("Add at least 3 unique skills.");
+
+  return { score: Math.min(maxScore, Math.round(earned)), suggestions };
+}
+
+// --- MAIN EXPORT ---
 
 export function calculateAtsScore(
   content: ResumeContent,
@@ -240,55 +272,106 @@ export function calculateAtsScore(
   const jobText = jobDescription.toLowerCase();
   const jobKeywords = extractKeywords(jobText);
 
-  const keywordMatches = jobKeywords.slice(0, 30).map((keyword) => {
-    const found = resumeText.includes(keyword);
-    const importance = determineImportance(keyword, jobText);
-    return {
-      keyword,
-      found,
-      importance,
-      suggestion: found ? undefined : `Consider adding "${keyword}" to your resume.`,
-    };
-  });
+  const { score: kwScore, matches: keywordMatches } = scoreKeywords(resumeText, jobKeywords, jobText);
+  const { score: cqScore, suggestions: cqSuggestions } = scoreContentQuality(content);
+  const { score: fmtScore, suggestions: fmtSuggestions } = scoreFormatting(content, resumeText);
+  const { score: secScore, suggestions: secSuggestions } = scoreSections(content);
+  const { score: valScore, suggestions: valSuggestions } = scoreValidation(content);
+
+  const overallScore = Math.min(100, kwScore + cqScore + fmtScore + secScore + valScore);
+
+  const grade =
+    overallScore >= 85 ? "A" :
+    overallScore >= 70 ? "B" :
+    overallScore >= 55 ? "C" :
+    overallScore >= 40 ? "D" : "F";
+
+  const sectionResults = [
+    {
+      name: "Keyword Match",
+      score: kwScore,
+      maxScore: ATS_WEIGHTS.keywords,
+      feedback: kwScore >= 30 ? "Strong keyword alignment." : kwScore >= 20 ? "Decent match, some keywords missing." : "Low keyword density — tailor to job description.",
+      suggestions: [],
+    },
+    {
+      name: "Content Quality",
+      score: cqScore,
+      maxScore: ATS_WEIGHTS.contentQuality,
+      feedback: cqScore >= 16 ? "High-quality content with metrics." : cqScore >= 10 ? "Good content, some improvements possible." : "Content needs more depth and metrics.",
+      suggestions: cqSuggestions,
+    },
+    {
+      name: "Formatting",
+      score: fmtScore,
+      maxScore: ATS_WEIGHTS.formatting,
+      feedback: fmtScore >= 16 ? "Well-formatted and complete." : fmtScore >= 10 ? "Good structure, a few details missing." : "Missing key contact or formatting details.",
+      suggestions: fmtSuggestions,
+    },
+    {
+      name: "Required Sections",
+      score: secScore,
+      maxScore: ATS_WEIGHTS.sections,
+      feedback: secScore >= 8 ? "All required sections present." : "Some required sections are incomplete.",
+      suggestions: secSuggestions,
+    },
+    {
+      name: "Validation",
+      score: valScore,
+      maxScore: ATS_WEIGHTS.validation,
+      feedback: valScore >= 8 ? "Passes all validation checks." : "Failed some validation rules.",
+      suggestions: valSuggestions,
+    },
+  ];
 
   const missingKeywords = keywordMatches
     .filter((k) => !k.found && k.importance === "high")
     .map((k) => k.keyword)
     .slice(0, 10);
 
-  const sectionNames = ["Contact & Summary", "Work Experience", "Skills", "Education", "Format & Completeness"];
-  const sections = sectionNames.map((name) => scoreSection(name, content, jobKeywords, resumeText));
-
-  const totalScore = sections.reduce((sum, s) => sum + s.score, 0);
-  const maxTotal = sections.reduce((sum, s) => sum + s.maxScore, 0);
-  const overallScore = Math.round((totalScore / maxTotal) * 100);
-
-  const grade =
-    overallScore >= 85 ? "A" : overallScore >= 70 ? "B" : overallScore >= 55 ? "C" : overallScore >= 40 ? "D" : "F";
-
-  const allSuggestions = sections.flatMap((s) => s.suggestions);
+  const allSuggestions = [...cqSuggestions, ...fmtSuggestions, ...secSuggestions, ...valSuggestions];
   if (missingKeywords.length > 0) {
-    allSuggestions.unshift(`Add these important keywords: ${missingKeywords.slice(0, 5).join(", ")}.`);
+    allSuggestions.unshift(`Add these high-priority keywords: ${missingKeywords.slice(0, 5).join(", ")}.`);
   }
 
   const strengths: string[] = [];
-  if (sections[0].score >= 15) strengths.push("Strong professional summary");
-  if (sections[1].score >= 28) strengths.push("Excellent work experience alignment");
-  if (sections[2].score >= 20) strengths.push("Strong skills match");
-  if (sections[3].score >= 8) strengths.push("Solid educational background");
-  if (keywordMatches.filter((k) => k.found).length > keywordMatches.length * 0.7)
-    strengths.push("High keyword density");
-  if (strengths.length === 0) strengths.push("Resume has foundational structure in place");
+  if (kwScore >= 30) strengths.push("Strong keyword alignment with job description");
+  if (cqScore >= 16) strengths.push("High-quality content with action verbs and metrics");
+  if (fmtScore >= 16) strengths.push("Well-formatted and complete contact info");
+  if (secScore >= 8) strengths.push("All required ATS sections present");
+  if (valScore >= 8) strengths.push("Passes all validation checks");
+  if (strengths.length === 0) strengths.push("Resume has foundational structure — keep improving!");
 
   return {
     overallScore,
     grade,
     keywordMatches,
-    sections,
+    sections: sectionResults,
     missingKeywords,
     improvementSuggestions: allSuggestions.slice(0, 8),
     strengths,
   };
+}
+
+// Auto-generate summary templates (v3.0 spec)
+const SUMMARY_TEMPLATES: Record<string, string> = {
+  fresher: "Motivated {role} graduate with a strong foundation in {skills}. Eager to apply theoretical knowledge and build impactful solutions.",
+  mid: "Results-driven {role} with {years}+ years of experience delivering scalable solutions. Proven track record in {skills} with measurable impact.",
+  senior: "Senior {role} with extensive experience architecting and delivering enterprise-grade solutions. Expert in {skills}, driving cross-functional teams toward business goals.",
+  school: "Ambitious student with hands-on experience in {skills} through academic projects and competitions. Passionate about {role} and eager to grow.",
+};
+
+export function autoGenerateSummary(
+  role: string,
+  skills: string[],
+  experienceLevel: "school" | "fresher" | "mid" | "senior" = "fresher"
+): string {
+  const template = SUMMARY_TEMPLATES[experienceLevel] || SUMMARY_TEMPLATES.fresher;
+  const topSkills = skills.slice(0, 3).join(", ") || "technology";
+  return template
+    .replace(/{role}/g, role || "professional")
+    .replace(/{skills}/g, topSkills)
+    .replace(/{years}/g, experienceLevel === "mid" ? "3" : "7");
 }
 
 export function enhanceContent(
@@ -304,39 +387,30 @@ export function enhanceContent(
   switch (section) {
     case "summary": {
       const lines = currentContent.split(".").filter((s) => s.trim().length > 0);
-      const enhanced = lines
-        .map((line) => {
-          const trimmed = line.trim();
-          if (trimmed.length < 20) return trimmed;
-          if (!trimmed.match(/\d/)) {
-            return trimmed + " with proven results";
-          }
-          return trimmed;
-        })
-        .join(". ");
+      const enhanced = lines.map((line) => {
+        const trimmed = line.trim();
+        if (trimmed.length < 20) return trimmed;
+        if (!METRICS_REGEX.test(trimmed)) return trimmed + " with proven results";
+        return trimmed;
+      }).join(". ");
       enhancedContent = enhanced + (enhanced.endsWith(".") ? "" : ".");
       suggestions.push("Quantify your impact with specific numbers and percentages.");
       suggestions.push("Start with your most impressive achievement.");
-      suggestions.push("Tailor this to match the job description keywords.");
-      explanation = "Enhanced your summary to be more impactful by adding result-oriented language.";
+      suggestions.push("Include your target role/title at the start.");
+      explanation = "Enhanced your summary with result-oriented language and stronger positioning.";
       break;
     }
-
     case "workExperience": {
       const bullets = currentContent.split("\n").filter((l) => l.trim());
-      const actionVerbs = [
-        "Spearheaded", "Delivered", "Optimized", "Orchestrated", "Accelerated",
-        "Engineered", "Drove", "Transformed", "Achieved", "Executed",
-      ];
       let verbIdx = 0;
       const enhanced = bullets.map((bullet) => {
         const clean = bullet.replace(/^[-•*]\s*/, "").trim();
         if (clean.length < 10) return bullet;
-        const hasVerb = /^[A-Z][a-z]+ed|^[A-Z][a-z]+ed|^Managed|^Led|^Built|^Created|^Developed/.test(clean);
+        const hasVerb = ACTION_VERBS.some((v) => clean.toLowerCase().startsWith(v));
         if (!hasVerb) {
-          const verb = actionVerbs[verbIdx % actionVerbs.length];
+          const verb = ACTION_VERBS[verbIdx % ACTION_VERBS.length];
           verbIdx++;
-          return `• ${verb} ${clean.charAt(0).toLowerCase()}${clean.slice(1)}`;
+          return `• ${verb.charAt(0).toUpperCase() + verb.slice(1)} ${clean.charAt(0).toLowerCase()}${clean.slice(1)}`;
         }
         return `• ${clean}`;
       });
@@ -344,55 +418,34 @@ export function enhanceContent(
       suggestions.push("Add metrics: percentages, dollar amounts, team sizes, timeframes.");
       suggestions.push("Use strong action verbs at the start of each bullet.");
       suggestions.push("Focus on accomplishments, not just responsibilities.");
-      explanation = "Reformatted bullets with stronger action verbs and a consistent structure.";
+      explanation = "Reformatted bullets with stronger action verbs and consistent structure.";
       break;
     }
-
     case "skills": {
       const skillList = currentContent.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
-      const categorized = {
-        "Technical": [] as string[],
-        "Soft Skills": [] as string[],
-        "Tools": [] as string[],
-      };
-      skillList.forEach((skill) => {
-        const lower = skill.toLowerCase();
-        if (lower.match(/communication|leadership|teamwork|problem|analytical|creative|manage/)) {
-          categorized["Soft Skills"].push(skill);
-        } else if (lower.match(/software|tool|platform|system|database|cloud|aws|azure|docker|git/)) {
-          categorized["Tools"].push(skill);
-        } else {
-          categorized["Technical"].push(skill);
-        }
-      });
-      const parts = Object.entries(categorized)
-        .filter(([, skills]) => skills.length > 0)
-        .map(([cat, skills]) => `${cat}: ${skills.join(", ")}`);
-      enhancedContent = parts.join("\n") || currentContent;
-      suggestions.push("Group skills by category for better readability.");
-      suggestions.push("Add proficiency levels (Expert, Advanced, Intermediate).");
-      explanation = "Organized your skills into logical categories for better ATS parsing and readability.";
+      const unique = [...new Set(skillList)];
+      enhancedContent = unique.join(", ");
+      suggestions.push("Group skills by category (Technical, Tools, Soft Skills).");
+      suggestions.push("Add proficiency levels where relevant.");
+      suggestions.push(`Ensure at least 3 skills (you have ${unique.length}).`);
+      explanation = "Removed duplicate skills and ensured uniqueness for ATS optimization.";
       break;
     }
-
     case "achievements": {
       const lines = currentContent.split("\n").filter((l) => l.trim());
       const enhanced = lines.map((line) => {
         const clean = line.replace(/^[-•*]\s*/, "").trim();
-        if (!clean.match(/\d+/)) {
-          return `• ${clean} (consider adding specific metrics)`;
-        }
+        if (!METRICS_REGEX.test(clean)) return `• ${clean} (add a specific number or % here)`;
         return `• ${clean}`;
       });
       enhancedContent = enhanced.join("\n");
-      suggestions.push("Every achievement should have a number or percentage.");
-      suggestions.push("Use the STAR method: Situation, Task, Action, Result.");
-      explanation = "Structured your achievements for maximum impact with clear result indicators.";
+      suggestions.push("Every achievement needs a number or percentage.");
+      suggestions.push("Use STAR: Situation, Task, Action, Result.");
+      explanation = "Highlighted achievements that need quantification for stronger impact.";
       break;
     }
-
     default:
-      explanation = "Content reviewed and minor improvements applied.";
+      explanation = "Content reviewed and improvements applied.";
   }
 
   return { enhancedContent, suggestions, explanation };

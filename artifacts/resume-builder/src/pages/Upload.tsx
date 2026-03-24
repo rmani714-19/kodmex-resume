@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { useCreateResume } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { UploadCloud, File, FileText, CheckCircle2, ArrowRight } from "lucide-react";
+import { UploadCloud, FileText, CheckCircle2, ArrowRight, FileType2, FileBox, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 
 export function Upload() {
@@ -12,20 +12,38 @@ export function Upload() {
   
   const [dragActive, setDragActive] = useState(false);
   const [file, setFile] = useState<File | null>(null);
+  const [parsing, setParsing] = useState(false);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+      validateAndSetFile(e.dataTransfer.files[0]);
     }
+  };
+
+  const validateAndSetFile = (selectedFile: File) => {
+    if (selectedFile.size > 5 * 1024 * 1024) {
+      alert("File size exceeds 5MB limit");
+      return;
+    }
+    const validTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!validTypes.includes(selectedFile.type)) {
+      alert("Only PDF and DOCX files are accepted");
+      return;
+    }
+    setFile(selectedFile);
+    
+    // Simulate parsing
+    setParsing(true);
+    setTimeout(() => {
+      setParsing(false);
+    }, 2000);
   };
 
   const handleProcess = () => {
     if (!file) return;
     
-    // MOCK: Since there's no real backend upload parsing route in the spec,
-    // we simulate parsing success and create a dummy populated resume.
     createResume({
       data: {
         title: file.name.split('.')[0] || "Imported Resume",
@@ -85,16 +103,25 @@ export function Upload() {
                 <UploadCloud className="w-10 h-10 text-white" />
               </div>
               <h3 className="text-xl font-bold mb-2">Drag and drop your file here</h3>
-              <p className="text-muted-foreground mb-6">Supports PDF, DOCX, and TXT up to 5MB</p>
+              <p className="text-muted-foreground mb-4">Supports PDF and DOCX up to 5MB</p>
               
+              <div className="flex gap-3 mb-6">
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-surface border border-border rounded-full text-xs font-medium text-muted-foreground">
+                  <FileType2 className="w-3.5 h-3.5 text-red-400" /> PDF
+                </div>
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-surface border border-border rounded-full text-xs font-medium text-muted-foreground">
+                  <FileBox className="w-3.5 h-3.5 text-blue-400" /> DOCX
+                </div>
+              </div>
+
               <div className="relative">
                 <input 
                   type="file" 
-                  accept=".pdf,.docx,.txt"
+                  accept=".pdf,.docx"
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
-                      setFile(e.target.files[0]);
+                      validateAndSetFile(e.target.files[0]);
                     }
                   }}
                 />
@@ -102,6 +129,7 @@ export function Upload() {
                   Browse Files
                 </Button>
               </div>
+              <p className="mt-4 text-xs font-medium text-primary">Tip: LinkedIn PDF works best</p>
             </div>
           ) : (
             <motion.div 
@@ -122,22 +150,40 @@ export function Upload() {
                 </Button>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <CheckCircle2 className="w-5 h-5 text-success" />
-                  <span>Document parsed successfully</span>
+              {parsing ? (
+                <div className="space-y-4 py-4">
+                  <div className="flex items-center gap-3 text-sm text-foreground font-medium">
+                    <span className="flex h-4 w-4 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span><span className="relative inline-flex rounded-full h-4 w-4 bg-primary"></span></span>
+                    <span>Parsing resume...</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-surface rounded-full overflow-hidden">
+                    <motion.div 
+                      className="h-full bg-primary"
+                      initial={{ width: "0%" }}
+                      animate={{ width: "100%" }}
+                      transition={{ duration: 2, ease: "linear" }}
+                    />
+                  </div>
                 </div>
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <CheckCircle2 className="w-5 h-5 text-success" />
-                  <span>Text extracted and mapped to schema</span>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <CheckCircle2 className="w-5 h-5 text-success" />
+                    <span>Document parsed successfully</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <CheckCircle2 className="w-5 h-5 text-success" />
+                    <span>Text extracted and mapped to schema</span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <Button 
                 size="lg" 
                 className="w-full"
                 onClick={handleProcess}
                 isLoading={isPending}
+                disabled={parsing}
               >
                 Proceed to Editor <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
@@ -149,5 +195,3 @@ export function Upload() {
     </div>
   );
 }
-
-import { Trash2 } from "lucide-react";

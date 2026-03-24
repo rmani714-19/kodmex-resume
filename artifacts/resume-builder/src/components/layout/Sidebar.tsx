@@ -18,7 +18,7 @@ export function Sidebar() {
           <Sparkles className="w-4 h-4 text-white" />
         </div>
         <span className="font-bold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-muted-foreground">
-          ElevateCV
+          KodMex Resume Builder
         </span>
       </div>
 
