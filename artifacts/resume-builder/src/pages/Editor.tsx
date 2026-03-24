@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
+import { AnimatePresence } from "framer-motion";
 import { useGetResume, useUpdateResume } from "@workspace/api-client-react";
 import type { ResumeContent, ResumeTemplate, EnhanceResumeRequestSection } from "@workspace/api-client-react/src/generated/api.schemas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Save, User, Briefcase, GraduationCap, Code, ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { Plus, Save, User, Briefcase, GraduationCap, Code, ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { ResumePreview } from "@/components/resume/ResumePreview";
 import { AtsScorePanel } from "@/components/resume/AtsScorePanel";
 import { EnhanceModal } from "@/components/resume/EnhanceModal";
@@ -327,5 +328,3 @@ export function Editor() {
   );
 }
 
-// Ensure Plus icon is available in the scope since it's used in the tabs
-import { Plus } from "lucide-react";
