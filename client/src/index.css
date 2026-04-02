@@ -1,0 +1,191 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    background: #f9fafb;
+  }
+
+  body {
+    @apply bg-page text-ink antialiased;
+    font-family: Arial, Calibri, "Helvetica Neue", sans-serif;
+  }
+}
+
+@layer components {
+  .app-card {
+    @apply rounded-2xl border border-slate-200 bg-white p-4;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  .premium-card {
+    @apply rounded-2xl border border-slate-200 bg-white p-5;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-[13px] font-medium text-slate-700;
+  }
+
+  .field-input {
+    @apply w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-[14px] outline-none transition;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
+  }
+
+  .field-input:focus {
+    @apply border-emerald-400 ring-2 ring-emerald-100;
+  }
+
+  .selection-card {
+    @apply rounded-2xl border border-slate-200 bg-white p-5 transition;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  }
+
+  .selection-card:hover {
+    border-color: #6366f1;
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.12);
+  }
+
+  .selection-card-selected {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.08);
+  }
+
+  .button-primary {
+    @apply rounded-[14px] px-7 py-3.5 text-sm font-semibold text-white transition;
+    background: #10b981;
+  }
+
+  .button-primary:hover {
+    background: #059669;
+  }
+
+  .button-secondary-pill {
+    @apply inline-flex items-center justify-center rounded-full border px-4 py-2 text-sm font-semibold;
+    border-color: #111827;
+    color: #111827;
+    background: #ffffff;
+  }
+
+  .sidebar-pill {
+    @apply rounded-[12px] px-[10px] py-[10px];
+    min-height: 76px;
+    background: transparent;
+  }
+
+  .sidebar-pill-active {
+    background: #1e3a8a;
+    box-shadow: none;
+  }
+
+  .ghost-icon-button {
+    @apply inline-flex items-center justify-center rounded-[10px] border border-black bg-black text-sm text-white;
+    height: 32px;
+    width: 32px;
+  }
+
+  .dashed-add-card {
+    @apply flex w-full items-center justify-center rounded-[12px] border-2 border-dashed bg-white px-5 py-4 text-sm font-semibold;
+    border-color: #6366f1;
+    color: #4f46e5;
+  }
+
+  .progress-track {
+    @apply h-1.5 overflow-hidden rounded-full;
+    background: #e5e7eb;
+  }
+
+  .progress-bar-active {
+    @apply h-full rounded-full;
+    background: #10b981;
+  }
+
+  .flow-step {
+    @apply flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-soft;
+  }
+
+  .flow-step-active {
+    @apply border-blue-200 bg-blue-50 text-blue-700;
+  }
+
+  .section-switch {
+    animation: section-switch-in 200ms ease-out;
+  }
+
+  .subtle-card-hover {
+    transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+  }
+
+  .subtle-card-hover:hover {
+    transform: scale(1.02);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+  }
+
+  .pressable {
+    transition: transform 160ms ease, box-shadow 160ms ease;
+  }
+
+  .pressable:active {
+    transform: scale(0.98);
+  }
+
+  .preview-fade-in {
+    animation: preview-fade-in 200ms ease-out;
+  }
+}
+
+@keyframes section-switch-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes preview-fade-in {
+  from {
+    opacity: 0.6;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.resume-container {
+  width: 794px;
+  min-width: 794px;
+  margin: 0 auto;
+  background: #ffffff;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #root {
+    display: block !important;
+  }
+
+  .resume-container {
+    width: 794px !important;
+    min-width: 794px !important;
+    margin: 0 auto !important;
+    padding: 24px !important;
+    box-shadow: none !important;
+  }
+
+  .resume-page-shell {
+    width: 754px !important;
+  }
+}
